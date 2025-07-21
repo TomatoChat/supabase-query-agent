@@ -1,11 +1,22 @@
-import json
 import os
 from dotenv import load_dotenv
+load_dotenv()
+
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()  # Console output only
+    ]
+)
+logger = logging.getLogger(__name__)
+
+import asyncio
+from fastmcp import Client
+import json
 import re
 from typing import Any, Dict, List, Union
-from fastmcp import Client
-import asyncio
-load_dotenv()
 
 
 def substituteEnvVars(obj: Union[Dict, List, str, Any]) -> Union[Dict, List, str, Any]:
@@ -29,7 +40,7 @@ def substituteEnvVars(obj: Union[Dict, List, str, Any]) -> Union[Dict, List, str
         return re.sub(r'\$\{([^}]+)\}', replacer, obj)
     else:
         return obj
-    
+
 
 def loadSupabaseMCPConfig(jsonPath: str = os.path.join(os.path.dirname(__file__), 'serversMCP.json'), returnClient: bool = True) -> Union[Client, Dict[str, Any]]:
     """
@@ -57,3 +68,31 @@ def loadSupabaseMCPConfig(jsonPath: str = os.path.join(os.path.dirname(__file__)
         # Return the Supabase config only
         supabaseConfig = mcpConfig['mcpServers']['supabase']
         return supabaseConfig
+    
+
+async def main():
+    """Test the Supabase MCP connection and list available tools."""
+    logger.info("🔌 Testing Supabase MCP Connection...")
+    
+    try:
+        client = loadSupabaseMCPConfig()
+        logger.info("✅ Client loaded successfully")
+        
+        async with client:
+            logger.info("🔗 Connected to Supabase MCP server")
+            
+            # List available tools
+            tools = await client.list_tools()
+            logger.info(f"📋 Available Tools ({len(tools)}):")
+            for tool in tools:
+                logger.info(f"  - {tool.name}: {tool.description}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error: {str(e)}")
+        logger.error("💡 Make sure your .env file contains:")
+        logger.error("   SUPABASE_PROJECT_ID=your-project-id")
+        logger.error("   SUPABASE_ACCESS_TOKEN=your-access-token")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
